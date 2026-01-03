@@ -1,0 +1,26 @@
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Database
+sqlalchemy==2.0.23
+pymysql==1.1.0
+cryptography==41.0.7
+alembic==1.13.0
+
+# Web Scraping
+playwright==1.40.0
+beautifulsoup4==4.12.2
+lxml==4.9.3
+requests==2.31.0
+
+# Utilities
+python-dotenv==1.0.0
+python-multipart==0.0.6
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+httpx==0.25.2

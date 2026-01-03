@@ -1,0 +1,64 @@
+# ============================================
+# AI Resume Screener - Docker Ignore
+# ============================================
+
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache
+.mypy_cache
+.ruff_cache
+*.egg-info
+*.egg
+.eggs
+
+# Virtual environments
+venv
+.venv
+env
+.env.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Testing
+.coverage
+htmlcov
+.tox
+.nox
+
+# Documentation (optional - uncomment to exclude)
+# docs/
+
+# Build
+build
+dist
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.docker
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/

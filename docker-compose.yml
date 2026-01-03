@@ -1,0 +1,112 @@
+# Job Crawler - Docker Compose
+
+services:
+  # API Application
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: job-crawler-api
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+      - DEBUG=${DEBUG:-false}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-job_crawler}
+      - MYSQL_USER=${MYSQL_USER:-crawler_user}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-crawler_pass}
+    volumes:
+      - ./data:/app/data
+      - ./.env:/app/.env:ro
+      - ./certs:/app/certs:ro
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - crawler-network
+
+  # Development with hot-reload
+  api-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: job-crawler-api-dev
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-job_crawler}
+      - MYSQL_USER=${MYSQL_USER:-crawler_user}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-crawler_pass}
+    volumes:
+      - ./api:/app/api
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./data:/app/data
+      - ./.env:/app/.env:ro
+    command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - crawler-network
+    profiles:
+      - dev
+
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: job-crawler-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-job_crawler}
+      MYSQL_USER: ${MYSQL_USER:-crawler_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-crawler_pass}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - crawler-network
+    restart: unless-stopped
+
+  # Dashboard UI
+  dashboard:
+    build:
+      context: ../Datamining-dashboard
+      dockerfile: Dockerfile
+    container_name: job-crawler-dashboard
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+    networks:
+      - crawler-network
+    restart: unless-stopped
+
+networks:
+  crawler-network:
+    driver: bridge
+
+volumes:
+  mysql_data:

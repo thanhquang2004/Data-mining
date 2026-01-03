@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+.eggs/
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data
+data/raw/
+data/processed/
+*.log
+*.db
+
+# Sensitive files
+cookies.json
+certs/*.pem
+certs/*.crt
+certs/*.key
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Docker
+.docker/
+
+itviec-session-cookies.json
