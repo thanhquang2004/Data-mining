@@ -31,7 +31,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Job Crawler API",
-    description="API to trigger and manage job crawlers for ITViec, TopDev, and LinkedIn",
+    description="API to trigger and manage job crawlers for ITViec, TopDev, TopCV, and LinkedIn",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -78,6 +78,7 @@ async def get_sources():
         "sources": [
             {"id": "itviec", "name": "ITViec", "url": "https://itviec.com"},
             {"id": "topdev", "name": "TopDev", "url": "https://topdev.vn"},
+            {"id": "topcv", "name": "TopCV", "url": "https://www.topcv.vn"},
             {"id": "linkedin", "name": "LinkedIn", "url": "https://linkedin.com"},
         ]
     }

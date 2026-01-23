@@ -135,17 +135,33 @@ class BaseCrawler(ABC):
         
         text_lower = text.lower()
         
-        range_match = re.search(r'(\d+)\s*(?:-|to|đến)\s*(\d+)\s*(?:năm|year)', text_lower)
+        # Pattern 1: "3-5 years" or "3 to 5 years"
+        range_match = re.search(r'(\d+)\s*(?:-|–|to|đến)\s*(\d+)\s*(?:năm|years?)', text_lower)
         if range_match:
             return {'min': int(range_match.group(1)), 'max': int(range_match.group(2))}
         
-        min_match = re.search(r'(?:at least|tối thiểu|ít nhất|over|trên)\s*(\d+)\s*(?:năm|year)', text_lower)
+        # Pattern 2: "at least 3 years" / "minimum 3 years"
+        min_match = re.search(r'(?:at least|tối thiểu|ít nhất|over|trên|minimum of?|more than)\s*(\d+)\s*(?:năm|years?)', text_lower)
         if min_match:
             return {'min': int(min_match.group(1)), 'max': None}
         
-        num_match = re.search(r'(\d+)\s*\+?\s*(?:năm|year)', text_lower)
-        if num_match:
-            return {'min': int(num_match.group(1)), 'max': None}
+        # Pattern 3: "5+ years" or "5 years of experience"
+        plus_match = re.search(r'(\d+)\s*\+\s*(?:năm|years?)', text_lower)
+        if plus_match:
+            return {'min': int(plus_match.group(1)), 'max': None}
+        
+        # Pattern 4: "X years of experience" or "X năm kinh nghiệm"
+        exp_match = re.search(r'(\d+)\s*(?:năm|years?)\s*(?:of\s+)?(?:experience|kinh nghiệm|exp)', text_lower)
+        if exp_match:
+            years = int(exp_match.group(1))
+            return {'min': years, 'max': None}
+        
+        # Pattern 5: "typically have X years" or "X-Y years in a role"
+        typical_match = re.search(r'(\d+)(?:\s*-\s*(\d+))?\s*(?:năm|years?)\s+(?:in|of|as)', text_lower)
+        if typical_match:
+            min_val = int(typical_match.group(1))
+            max_val = int(typical_match.group(2)) if typical_match.group(2) else None
+            return {'min': min_val, 'max': max_val}
         
         return {'min': None, 'max': None}
     

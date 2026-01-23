@@ -22,9 +22,6 @@ try:
     PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     PLAYWRIGHT_AVAILABLE = False
-    # Define dummy types for type hints when Playwright is not available
-    Page = None
-    Browser = None
     logger.warning("Playwright not available. Install with: pip install playwright && playwright install chromium")
 
 
@@ -552,13 +549,25 @@ class ITViecCrawler(BaseCrawler):
             
             detail_data = {}
             
-            # Salary - use improved extraction method
-            salary_info = self._extract_salary_info(page)
-            if salary_info["salary_text"]:
-                detail_data['salary_text'] = salary_info["salary_text"]
-                detail_data['salary_min'] = salary_info["salary_min"]
-                detail_data['salary_max'] = salary_info["salary_max"]
-                detail_data['salary_currency'] = salary_info["salary_currency"]
+            # Salary - check multiple selectors
+            salary_text = None
+            salary_selectors = [
+                'span.ips-2.fw-500',
+                '.salary',
+                '[class*="salary"]:not(.sign-in-view-salary)',
+                '.job-header-info .fw-700',
+            ]
+            for selector in salary_selectors:
+                salary_elem = page.query_selector(selector)
+                if salary_elem:
+                    text = salary_elem.inner_text().strip()
+                    # Skip "sign in to view" text
+                    if text and 'sign in' not in text.lower() and 'đăng nhập' not in text.lower():
+                        salary_text = text
+                        break
+            
+            if salary_text:
+                detail_data['salary_text'] = salary_text
                 salary_info = self.parse_salary_range(salary_text)
                 detail_data.update(salary_info)
             
@@ -644,7 +653,7 @@ class ITViecCrawler(BaseCrawler):
                 except:
                     pass
             
-            # Skills from detail page - combine tag extraction with content extraction
+            # Skills from detail page (limit to MAX_SKILLS_PER_JOB)
             skill_elems = page.query_selector_all('div.d-flex.flex-wrap.igap-2 a.itag, .skill-tag, [class*="skill"] a')
             skills = []
             for elem in skill_elems:
@@ -653,16 +662,6 @@ class ITViecCrawler(BaseCrawler):
                     skills.append(skill_text)
                 if len(skills) >= self.MAX_SKILLS_PER_JOB:
                     break
-            
-            # If we don't have many skills from tags, use content extraction
-            if len(skills) < 5:
-                content_skills = self._extract_skills_from_content(page)
-                for skill in content_skills:
-                    if skill not in skills:
-                        skills.append(skill)
-                    if len(skills) >= self.MAX_SKILLS_PER_JOB:
-                        break
-            
             if skills:
                 detail_data['required_skills'] = skills
             
@@ -824,110 +823,6 @@ class ITViecCrawler(BaseCrawler):
         
         return (now - delta).strftime("%Y-%m-%d")
     
-    def _extract_salary_info(self, page: Page) -> Dict[str, Any]:
-        """
-        Extract salary information with improved logic from crawl_itviec_correct.py.
-        Returns dict with salary_text, salary_min, salary_max, salary_currency.
-        """
-        result = {
-            "salary_text": None,
-            "salary_min": None,
-            "salary_max": None,
-            "salary_currency": None
-        }
-        
-        # Skip these promotional texts
-        skip_keywords = [
-            'it salary report', 'sign in to view', 'sign in', 'unlock', 'premium',
-            "you'll love", 'you will love', 'competitive', 'attractive',
-            'negotiable', 'discuss', 'contact us', 'benefits', 'apply'
-        ]
-        
-        # Method 1: Look for visible salary element (when logged in with cookies)
-        salary_elem = page.query_selector('div.salary, .salary-text, [class*="salary"]')
-        if salary_elem:
-            # Remove any "Sign in to view" links first
-            page.evaluate("""(el) => {
-                const links = el.querySelectorAll('a.sign-in-view-salary, a[href*="sign-in"]');
-                links.forEach(link => link.remove());
-            }""", salary_elem)
-            
-            salary_text = salary_elem.inner_text().strip()
-            if salary_text and len(salary_text) > 5:
-                # Check if it's not a promotional text
-                if not any(skip in salary_text.lower() for skip in skip_keywords):
-                    result["salary_text"] = salary_text
-        
-        # Method 2: Look in page content for salary patterns
-        if not result["salary_text"]:
-            page_text = page.content()
-            # Pattern: "$500 - $1000" or "500 USD - 1000 USD"
-            salary_pattern = r'\$?\s*\d+(?:,\d+)*\s*(?:USD|VND)?\s*[-–]\s*\$?\s*\d+(?:,\d+)*\s*(?:USD|VND)?'
-            matches = re.findall(salary_pattern, page_text, re.IGNORECASE)
-            
-            for match in matches:
-                if not any(skip in match.lower() for skip in skip_keywords):
-                    result["salary_text"] = match.strip()
-                    break
-        
-        # Parse salary text if found
-        if result["salary_text"]:
-            salary_text = result["salary_text"]
-            
-            # Additional validation: must contain numbers AND currency
-            numbers = re.findall(r'\d+(?:,\d+)*', salary_text)
-            has_currency = any(curr in salary_text.upper() for curr in ['USD', 'VND', '$'])
-            
-            # If no numbers or no currency, it's not valid
-            if not numbers or not has_currency:
-                result["salary_text"] = None
-                return result
-            
-            # Must have at least 2 numbers for range, or 1 with explicit indicators
-            if len(numbers) < 2 and not any(word in salary_text.lower() for word in ['up to', 'from', 'above']):
-                result["salary_text"] = None
-                return result
-            
-            # Check for suspicious phrases
-            suspicious = ['love', 'competitive', 'attractive', 'negotiable', 'tbd', 'contact']
-            if any(phrase in salary_text.lower() for phrase in suspicious):
-                result["salary_text"] = None
-                return result
-            
-            # Detect currency
-            if 'USD' in salary_text.upper() or '$' in salary_text:
-                result["salary_currency"] = 'USD'
-            elif 'VND' in salary_text.upper():
-                result["salary_currency"] = 'VND'
-            
-            # Extract min/max values
-            if len(numbers) >= 2:
-                result["salary_min"] = int(numbers[0].replace(',', ''))
-                result["salary_max"] = int(numbers[1].replace(',', ''))
-            elif len(numbers) == 1:
-                result["salary_min"] = result["salary_max"] = int(numbers[0].replace(',', ''))
-            
-            # Handle millions
-            if 'million' in salary_text.lower():
-                if result["salary_min"]:
-                    result["salary_min"] *= 1000000
-                if result["salary_max"]:
-                    result["salary_max"] *= 1000000
-            
-            # Sanity check: reasonable salary ranges
-            if result["salary_currency"] == 'USD':
-                # USD: typically 100-50000 per month
-                if (result["salary_min"] and (result["salary_min"] < 100 or result["salary_min"] > 50000)) or \
-                   (result["salary_max"] and (result["salary_max"] < 100 or result["salary_max"] > 50000)):
-                    result = {"salary_text": None, "salary_min": None, "salary_max": None, "salary_currency": None}
-            elif result["salary_currency"] == 'VND':
-                # VND: typically 1M-500M per month
-                if (result["salary_min"] and (result["salary_min"] < 1000000 or result["salary_min"] > 500000000)) or \
-                   (result["salary_max"] and (result["salary_max"] < 1000000 or result["salary_max"] > 500000000)):
-                    result = {"salary_text": None, "salary_min": None, "salary_max": None, "salary_currency": None}
-        
-        return result
-    
     def _extract_job_type_from_page(self, page: Page) -> str:
         """Extract job type from job detail page."""
         # Try to find working time info
@@ -950,70 +845,6 @@ class ITViecCrawler(BaseCrawler):
         
         return 'Full-time'
     
-    
-    def _extract_skills_from_content(self, page: Page) -> List[str]:
-        """
-        Extract technical skills using comprehensive keyword list from crawl_itviec_correct.py.
-        Returns list of detected skills.
-        """
-        skills = []
-        skill_keywords = [
-            # Programming Languages
-            'Java', 'Python', 'JavaScript', 'TypeScript', 'C++', 'C#', 'Go', 'Rust', 'Ruby', 'PHP', 
-            'Swift', 'Kotlin', 'Scala', 'Perl', 'R', 'MATLAB', 'Dart', 'Elixir', 'Haskell',
-            
-            # Frameworks & Libraries
-            'React', 'Angular', 'Vue', 'Vue.js', 'Node.js', 'Spring', 'Spring Boot', 'Django', 
-            'Flask', 'Express', 'Express.js', '.NET', 'ASP.NET', 'Laravel', 'Rails', 'FastAPI',
-            'Next.js', 'Nuxt.js', 'Svelte', 'Ember', 'Backbone', 'jQuery',
-            
-            # DevOps & Cloud
-            'Docker', 'Kubernetes', 'AWS', 'Azure', 'GCP', 'Google Cloud', 'Jenkins', 'CI/CD', 
-            'Git', 'GitLab', 'GitHub', 'Terraform', 'Ansible', 'Puppet', 'Chef', 'Helm',
-            'ArgoCD', 'CircleCI', 'Travis CI', 'CloudFormation',
-            
-            # Databases
-            'MySQL', 'PostgreSQL', 'MongoDB', 'Redis', 'Elasticsearch', 'Cassandra', 'Oracle', 
-            'SQL Server', 'MariaDB', 'DynamoDB', 'Couchbase', 'Neo4j', 'InfluxDB', 'TimescaleDB',
-            
-            # Message Queues & Streaming
-            'Kafka', 'RabbitMQ', 'ActiveMQ', 'NATS', 'Pulsar', 'Redis Pub/Sub',
-            
-            # APIs & Architecture
-            'REST API', 'RESTful', 'GraphQL', 'gRPC', 'Microservices', 'API', 'SOAP', 'WebSocket',
-            
-            # Methodologies & Practices
-            'Agile', 'Scrum', 'Kanban', 'DevOps', 'TDD', 'BDD', 'DDD', 'SOLID',
-            
-            # AI/ML & Data
-            'Machine Learning', 'ML', 'AI', 'Deep Learning', 'Data Science', 'TensorFlow', 
-            'PyTorch', 'Keras', 'Scikit-learn', 'Pandas', 'NumPy', 'Spark', 'Hadoop',
-            
-            # Frontend
-            'HTML', 'CSS', 'SASS', 'SCSS', 'Less', 'Tailwind', 'Bootstrap', 'Material UI',
-            'Webpack', 'Vite', 'Babel', 'ESLint',
-            
-            # Backend & Systems
-            'SQL', 'NoSQL', 'Linux', 'Unix', 'Windows', 'Bash', 'PowerShell',
-            
-            # Mobile
-            'Android', 'iOS', 'React Native', 'Flutter', 'Xamarin', 'Ionic',
-            
-            # Testing
-            'Jest', 'Mocha', 'Pytest', 'JUnit', 'Selenium', 'Cypress', 'TestNG',
-            
-            # Other Tools
-            'JIRA', 'Confluence', 'Slack', 'Postman', 'Swagger', 'Nginx', 'Apache',
-        ]
-        
-        content = page.content().lower()
-        for skill in skill_keywords:
-            # Use word boundary to match whole words only
-            if re.search(r'\b' + re.escape(skill.lower()) + r'\b', content):
-                if skill not in skills:
-                    skills.append(skill)
-        
-        return skills[:self.MAX_SKILLS_PER_JOB]  # Limit to MAX_SKILLS_PER_JOB
     
     def _infer_level_from_text(self, text: str, page: Page = None) -> str:
         """Infer job level from requirements text and page content."""
