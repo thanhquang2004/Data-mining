@@ -24,6 +24,7 @@ build/
 
 # Data
 data/raw/
+data/*.csv
 data/processed/
 *.log
 *.db
