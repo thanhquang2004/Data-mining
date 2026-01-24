@@ -63,22 +63,35 @@ class CrawlerService:
             job.started_at = datetime.now()
             logger.info(f"Starting crawler for job {job_id}")
             
+            # Prepare crawler kwargs
             crawler_kwargs = {"headless": request.headless}
             if request.cookies_path:
                 crawler_kwargs["cookies_path"] = request.cookies_path
             
+            # Special handling for TopCV crawler
+            if request.source == 'topcv':
+                crawler_kwargs["download_dir"] = str(self.data_dir / "topcv_html")
+                crawler_kwargs["urls_cache_file"] = str(self.data_dir / "topcv_urls.json")
+            
             crawler = create_crawler(request.source, **crawler_kwargs)
             
-            crawl_kwargs = {
-                "pages": request.pages,
-                "max_jobs": request.max_jobs,
-                "fetch_details": request.fetch_details,
-                "store_to_db": request.store_to_db,
-            }
-            if request.keywords:
-                crawl_kwargs["keywords"] = request.keywords
-            if request.location:
-                crawl_kwargs["location"] = request.location
+            # Prepare crawl kwargs based on source
+            if request.source == 'topcv':
+                # TopCV uses max_pages instead of pages
+                crawl_kwargs = {
+                    "max_pages": request.pages,
+                }
+            else:
+                crawl_kwargs = {
+                    "pages": request.pages,
+                    "max_jobs": request.max_jobs,
+                    "fetch_details": request.fetch_details,
+                    "store_to_db": request.store_to_db,
+                }
+                if request.keywords:
+                    crawl_kwargs["keywords"] = request.keywords
+                if request.location:
+                    crawl_kwargs["location"] = request.location
             
             loop = asyncio.get_event_loop()
             results = await loop.run_in_executor(

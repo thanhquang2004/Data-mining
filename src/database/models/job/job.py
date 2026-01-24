@@ -13,7 +13,7 @@ class Job(Base):
     
     __tablename__ = "jobs"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     
     # Basic Info
     title = Column(String(500), nullable=False, index=True)

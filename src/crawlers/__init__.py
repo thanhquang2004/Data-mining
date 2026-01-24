@@ -7,18 +7,21 @@ Each crawler inherits from BaseCrawler and implements site-specific logic.
 Available Crawlers:
 - ITViecCrawler: For ITViec.com
 - TopDevCrawler: For TopDev.vn
+- TopCVCrawler: For TopCV.vn
 - LinkedInCrawler: For LinkedIn.com
 """
 
 from .base_crawler import BaseCrawler
 from .itviec_crawler import ITViecCrawler
 from .topdev_crawler import TopDevCrawler
+from .topcv_crawler import TopCVCrawler
 from .linkedin_crawler import LinkedInCrawler
 
 __all__ = [
     'BaseCrawler',
     'ITViecCrawler',
     'TopDevCrawler',
+    'TopCVCrawler',
     'LinkedInCrawler',
     'create_crawler',
 ]
@@ -29,7 +32,7 @@ def create_crawler(source: str, **kwargs):
     Factory function to create a crawler based on source name.
     
     Args:
-        source: Source name ('itviec', 'topdev', 'linkedin')
+        source: Source name ('itviec', 'topdev', 'topcv', 'linkedin')
         **kwargs: Additional arguments passed to the crawler
         
     Returns:
@@ -39,13 +42,14 @@ def create_crawler(source: str, **kwargs):
         ValueError: If source is not recognized
         
     Example:
-        >>> crawler = create_crawler('linkedin', headless=True)
-        >>> for job in crawler.crawl(keywords=['python'], pages=2):
+        >>> crawler = create_crawler('topcv', download_dir='data/topcv_html')
+        >>> for job in crawler.crawl(max_pages=10):
         >>>     print(job)
     """
     crawlers = {
         'itviec': ITViecCrawler,
         'topdev': TopDevCrawler,
+        'topcv': TopCVCrawler,
         'linkedin': LinkedInCrawler,
     }
     

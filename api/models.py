@@ -18,7 +18,7 @@ class CrawlStatus(str, Enum):
 
 class CrawlRequest(BaseModel):
     """Request model for starting a crawl job."""
-    source: str = Field(..., description="Crawler source (itviec, topdev, linkedin)")
+    source: str = Field(..., description="Crawler source (itviec, topdev, topcv, linkedin)")
     keywords: Optional[List[str]] = Field(None, description="Search keywords")
     location: Optional[str] = Field(None, description="Location filter")
     pages: int = Field(1, ge=1, le=100, description="Number of pages to crawl (1-100)")
@@ -31,7 +31,7 @@ class CrawlRequest(BaseModel):
     @validator('source')
     def validate_source(cls, v):
         """Validate that source is supported."""
-        allowed_sources = ['itviec', 'topdev', 'linkedin']
+        allowed_sources = ['itviec', 'topdev', 'topcv', 'linkedin']
         if v.lower() not in allowed_sources:
             raise ValueError(f"Source must be one of: {', '.join(allowed_sources)}")
         return v.lower()
