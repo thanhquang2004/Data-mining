@@ -4,12 +4,13 @@ Dashboard API - Analytics endpoints for job data visualization.
 from collections import Counter
 from datetime import datetime, timedelta
 from typing import Optional
+import json
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from src.database import get_db, Job
+from src.database import get_db, Job, JobIT
 
 router = APIRouter(prefix="/api/v1/dashboard", tags=["Dashboard"])
 
@@ -394,3 +395,325 @@ async def get_jobs_list(
         "skip": skip,
         "limit": limit
     }
+
+
+# ===== JobsIT Endpoints =====
+
+@router.get("/jobs-it/stats")
+async def get_jobs_it_stats(db: Session = Depends(get_db)):
+    """Get overall statistics for preprocessed IT jobs."""
+    total_jobs = db.query(func.count(JobIT.id)).scalar() or 0
+    active_jobs = db.query(func.count(JobIT.id)).filter(JobIT.is_active == True).scalar() or 0
+    
+    sources = db.query(
+        JobIT.source,
+        func.count(JobIT.id).label('count')
+    ).group_by(JobIT.source).all()
+    
+    jobs_by_source = {s.source or 'unknown': s.count for s in sources}
+    
+    # Level distribution
+    levels = db.query(
+        JobIT.level,
+        func.count(JobIT.id).label('count')
+    ).group_by(JobIT.level).all()
+    
+    jobs_by_level = {l.level or 'unknown': l.count for l in levels}
+    
+    # Remote vs Onsite
+    remote_count = db.query(func.count(JobIT.id)).filter(JobIT.is_remote == True).scalar() or 0
+    
+    # Prediction distribution
+    pred_dist = db.query(
+        JobIT.pred,
+        func.count(JobIT.id).label('count')
+    ).group_by(JobIT.pred).all()
+    
+    jobs_by_prediction = {p.pred: p.count for p in pred_dist}
+    
+    # Experience range stats
+    avg_exp_min = db.query(func.avg(JobIT.experience_years_min)).filter(
+        JobIT.experience_years_min.isnot(None)
+    ).scalar()
+    
+    avg_exp_max = db.query(func.avg(JobIT.experience_years_max)).filter(
+        JobIT.experience_years_max.isnot(None)
+    ).scalar()
+    
+    return {
+        "total_jobs": total_jobs,
+        "active_jobs": active_jobs,
+        "inactive_jobs": total_jobs - active_jobs,
+        "jobs_by_source": jobs_by_source,
+        "jobs_by_level": jobs_by_level,
+        "jobs_by_prediction": jobs_by_prediction,
+        "remote_jobs": remote_count,
+        "onsite_jobs": total_jobs - remote_count,
+        "avg_experience_min": round(avg_exp_min, 1) if avg_exp_min else None,
+        "avg_experience_max": round(avg_exp_max, 1) if avg_exp_max else None,
+        "last_updated": datetime.now().isoformat()
+    }
+
+
+@router.get("/jobs-it/skills")
+async def get_jobs_it_skills(
+    limit: int = Query(20, ge=1, le=100, description="Number of top skills to return"),
+    source: Optional[str] = Query(None, description="Filter by source"),
+    db: Session = Depends(get_db)
+):
+    """Get top skills analytics from preprocessed IT jobs."""
+    query = db.query(JobIT.required_skills)
+    
+    if source:
+        query = query.filter(JobIT.source == source)
+    
+    jobs = query.filter(JobIT.is_active == True).all()
+    
+    skills_counter = Counter()
+    
+    for job in jobs:
+        if job.required_skills:
+            try:
+                # Parse JSON string
+                skills = json.loads(job.required_skills) if isinstance(job.required_skills, str) else job.required_skills
+                if isinstance(skills, list):
+                    for skill in skills:
+                        if skill:
+                            skill_lower = str(skill).strip().lower()
+                            if skill_lower and skill_lower != 'yes':  # Filter out generic terms
+                                skills_counter[skill_lower] += 1
+            except (json.JSONDecodeError, TypeError):
+                pass
+    
+    return {
+        "top_skills": [
+            {"skill": skill, "count": count} 
+            for skill, count in skills_counter.most_common(limit)
+        ],
+        "total_skills": len(skills_counter),
+        "total_jobs_analyzed": len(jobs)
+    }
+
+
+@router.get("/jobs-it/locations")
+async def get_jobs_it_locations(
+    limit: int = Query(20, ge=1, le=100, description="Number of top locations to return"),
+    source: Optional[str] = Query(None, description="Filter by source"),
+    db: Session = Depends(get_db)
+):
+    """Get top locations for IT jobs."""
+    query = db.query(
+        JobIT.location,
+        func.count(JobIT.id).label('count')
+    ).filter(JobIT.location.isnot(None))
+    
+    if source:
+        query = query.filter(JobIT.source == source)
+    
+    locations = query.filter(JobIT.is_active == True).group_by(JobIT.location).order_by(
+        func.count(JobIT.id).desc()
+    ).limit(limit).all()
+    
+    return {
+        "top_locations": [
+            {"location": loc.location, "count": loc.count}
+            for loc in locations
+        ]
+    }
+
+
+@router.get("/jobs-it/companies")
+async def get_jobs_it_companies(
+    limit: int = Query(20, ge=1, le=100, description="Number of top companies to return"),
+    source: Optional[str] = Query(None, description="Filter by source"),
+    db: Session = Depends(get_db)
+):
+    """Get top companies hiring for IT jobs."""
+    query = db.query(
+        JobIT.company_name,
+        func.count(JobIT.id).label('count')
+    ).filter(JobIT.company_name.isnot(None))
+    
+    if source:
+        query = query.filter(JobIT.source == source)
+    
+    companies = query.filter(JobIT.is_active == True).group_by(JobIT.company_name).order_by(
+        func.count(JobIT.id).desc()
+    ).limit(limit).all()
+    
+    return {
+        "top_companies": [
+            {"company_name": company.company_name, "count": company.count}
+            for company in companies
+        ]
+    }
+
+
+@router.get("/jobs-it/levels")
+async def get_jobs_it_levels(
+    source: Optional[str] = Query(None, description="Filter by source"),
+    db: Session = Depends(get_db)
+):
+    """Get job level distribution for IT jobs."""
+    query = db.query(
+        JobIT.level,
+        func.count(JobIT.id).label('count')
+    ).filter(JobIT.level.isnot(None))
+    
+    if source:
+        query = query.filter(JobIT.source == source)
+    
+    levels = query.filter(JobIT.is_active == True).group_by(JobIT.level).order_by(
+        func.count(JobIT.id).desc()
+    ).all()
+    
+    return {
+        "levels": [
+            {"level": level.level, "count": level.count}
+            for level in levels
+        ]
+    }
+
+
+@router.get("/jobs-it/predictions")
+async def get_jobs_it_predictions(
+    source: Optional[str] = Query(None, description="Filter by source"),
+    db: Session = Depends(get_db)
+):
+    """Get prediction/classification distribution for IT jobs."""
+    query = db.query(
+        JobIT.pred,
+        func.count(JobIT.id).label('count')
+    )
+    
+    if source:
+        query = query.filter(JobIT.source == source)
+    
+    predictions = query.filter(JobIT.is_active == True).group_by(JobIT.pred).order_by(
+        JobIT.pred
+    ).all()
+    
+    return {
+        "predictions": [
+            {"prediction": pred.pred, "count": pred.count}
+            for pred in predictions
+        ]
+    }
+
+
+@router.get("/jobs-it/experience")
+async def get_jobs_it_experience(
+    source: Optional[str] = Query(None, description="Filter by source"),
+    db: Session = Depends(get_db)
+):
+    """Get experience requirements distribution for IT jobs."""
+    query = db.query(JobIT)
+    
+    if source:
+        query = query.filter(JobIT.source == source)
+    
+    jobs = query.filter(
+        JobIT.is_active == True,
+        JobIT.experience_years_min.isnot(None)
+    ).all()
+    
+    # Group by experience ranges
+    exp_ranges = {
+        "0-1": 0,
+        "1-3": 0,
+        "3-5": 0,
+        "5-7": 0,
+        "7+": 0
+    }
+    
+    for job in jobs:
+        exp_min = job.experience_years_min or 0
+        if exp_min < 1:
+            exp_ranges["0-1"] += 1
+        elif exp_min < 3:
+            exp_ranges["1-3"] += 1
+        elif exp_min < 5:
+            exp_ranges["3-5"] += 1
+        elif exp_min < 7:
+            exp_ranges["5-7"] += 1
+        else:
+            exp_ranges["7+"] += 1
+    
+    return {
+        "experience_ranges": [
+            {"range": range_name, "count": count}
+            for range_name, count in exp_ranges.items()
+        ],
+        "total_jobs": len(jobs)
+    }
+
+
+@router.get("/jobs-it")
+async def get_jobs_it_list(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    source: Optional[str] = Query(None),
+    location: Optional[str] = Query(None),
+    level: Optional[str] = Query(None),
+    pred: Optional[int] = Query(None),
+    search: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Get paginated list of preprocessed IT jobs."""
+    query = db.query(JobIT).filter(JobIT.is_active == True)
+    
+    if source:
+        query = query.filter(JobIT.source == source)
+    if location:
+        query = query.filter(JobIT.location.ilike(f"%{location}%"))
+    if level:
+        query = query.filter(JobIT.level == level)
+    if pred is not None:
+        query = query.filter(JobIT.pred == pred)
+    if search:
+        query = query.filter(
+            (JobIT.title.ilike(f"%{search}%")) |
+            (JobIT.company_name.ilike(f"%{search}%")) |
+            (JobIT.description.ilike(f"%{search}%"))
+        )
+    
+    total = query.count()
+    jobs = query.order_by(JobIT.id.desc()).offset(skip).limit(limit).all()
+    
+    def parse_json_field(field_value):
+        """Parse JSON string field safely."""
+        if not field_value:
+            return []
+        try:
+            if isinstance(field_value, str):
+                return json.loads(field_value)
+            return field_value if isinstance(field_value, list) else []
+        except (json.JSONDecodeError, TypeError):
+            return []
+    
+    return {
+        "jobs": [
+            {
+                "id": job.id,
+                "title": job.title,
+                "company_name": job.company_name,
+                "location": job.location,
+                "source": job.source,
+                "source_url": job.source_url,
+                "level": job.level,
+                "job_type": job.job_type,
+                "experience_years_min": job.experience_years_min,
+                "experience_years_max": job.experience_years_max,
+                "education_level": job.education_level,
+                "required_skills": parse_json_field(job.required_skills),
+                "is_remote": job.is_remote,
+                "pred": job.pred,
+                "description": job.description[:200] + "..." if job.description and len(job.description) > 200 else job.description
+            }
+            for job in jobs
+        ],
+        "total": total,
+        "skip": skip,
+        "limit": limit
+    }
+

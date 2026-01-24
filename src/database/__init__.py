@@ -2,7 +2,7 @@
 Database package.
 """
 from .connection import Base, engine, SessionLocal, get_db, get_db_session, init_database
-from .models import Job, job_crud, JobCRUD
+from .models import Job, JobIT, job_crud, JobCRUD
 
 __all__ = [
     "Base",
@@ -12,6 +12,7 @@ __all__ = [
     "get_db_session",
     "init_database",
     "Job",
+    "JobIT",
     "job_crud",
     "JobCRUD",
 ]
