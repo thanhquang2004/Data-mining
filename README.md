@@ -1,112 +1,203 @@
-# 🕷️ Job Crawler - Data Mining Project
+# 🕷️ Data Mining Project - Job Crawler & Analysis System
 
-A comprehensive web crawler application for collecting IT job postings from Vietnamese job platforms. This is the **data collection** component of a larger data mining pipeline.
+A comprehensive data mining pipeline for collecting, processing, and analyzing IT job postings from Vietnamese job platforms. This project demonstrates end-to-end data mining workflows from web scraping to machine learning.
+
+---
 
 ## 📋 Table of Contents
 
-- [Overview](#overview)
-- [Features](#features)
-- [Folder Structure](#folder-structure)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Usage](#usage)
-- [API Reference](#api-reference)
-- [Data Schema](#data-schema)
-- [Extending the Project](#extending-the-project)
-- [Building Other Processes](#building-other-processes)
-- [Contributing](#contributing)
+- [Overview](#-overview)
+- [Features](#-features)
+- [Architecture](#-architecture)
+- [Technology Stack](#-technology-stack)
+- [Project Structure](#-project-structure)
+- [Installation](#-installation)
+- [Configuration](#-configuration)
+- [Usage](#-usage)
+- [Data Pipeline](#-data-pipeline)
+- [API Reference](#-api-reference)
+- [Notebooks](#-notebooks)
+- [Database Schema](#-database-schema)
+- [Contributing](#-contributing)
+- [License](#-license)
 
 ---
 
 ## 🎯 Overview
 
-This project is designed as the **first stage** of a data mining workflow:
+This project implements a complete data mining pipeline for job market analysis:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                          DATA MINING PIPELINE                                    │
 ├─────────────────┬─────────────────┬─────────────────┬──────────────────────────┤
 │   1. COLLECT    │   2. PROCESS    │   3. ANALYZE    │      4. VISUALIZE        │
-│   (This Repo)   │   (Future)      │   (Future)      │      (Dashboard)         │
 ├─────────────────┼─────────────────┼─────────────────┼──────────────────────────┤
-│ • Web Crawlers  │ • Data Cleaning │ • ML Models     │ • Charts & Graphs        │
-│ • API Service   │ • Normalization │ • NLP/NER       │ • Reports                │
-│ • Raw Data      │ • Deduplication │ • Clustering    │ • Insights               │
-│ • MySQL Storage │ • Enrichment    │ • Trend Analysis│ • Interactive UI         │
+│ • Web Crawlers  │ • Data Cleaning │ • Skill Extract │ • Dashboard API          │
+│ • Anti-bot      │ • Translation   │ • Experience    │ • Statistics             │
+│ • Multi-source  │ • Normalization │ • Clustering    │ • Trends                 │
+│ • MySQL Storage │ • Deduplication │ • Scoring       │ • Insights               │
 └─────────────────┴─────────────────┴─────────────────┴──────────────────────────┘
 ```
 
-### Supported Job Platforms
+### Supported Platforms
 
-| Platform                         | Status         | Features                                         |
-| -------------------------------- | -------------- | ------------------------------------------------ |
-| [ITViec](https://itviec.com)     | ✅ Active      | Cookie auth, Cloudflare bypass, full job details |
-| [TopDev](https://topdev.vn)      | 🔧 In Progress | Basic crawling                                   |
-| [LinkedIn](https://linkedin.com) | 🔧 In Progress | Requires authentication                          |
+| Platform                         | Status     | Features                                         |
+| -------------------------------- | ---------- | ------------------------------------------------ |
+| [ITViec](https://itviec.com)     | ✅ Active  | Playwright automation, cookie auth, full details |
+| [TopCV](https://topcv.vn)        | ✅ Active  | CloudScraper, anti-bot bypass                    |
+| [TopDev](https://topdev.vn)      | ✅ Active  | Basic crawling                                   |
+| [LinkedIn](https://linkedin.com) | 🔧 Limited | FlareSolverr integration                         |
 
 ---
 
 ## ✨ Features
 
-- **Multi-source Crawling**: Support for multiple job platforms
-- **Playwright Integration**: Browser automation for JavaScript-heavy sites
-- **Cloudflare Bypass**: Cookie-based authentication for protected sites
-- **Rate Limiting**: Configurable delays to avoid detection
-- **RESTful API**: FastAPI-based API for triggering and managing crawlers
-- **Background Jobs**: Async crawl jobs with status tracking
-- **MySQL Storage**: Persistent storage with SQLAlchemy ORM
-- **Docker Support**: Containerized deployment ready
-- **Data Export**: Raw JSON export for downstream processing
+### Data Collection
+
+- 🕷️ **Multi-source crawling** - 4 major Vietnamese job platforms
+- 🤖 **Anti-bot solutions** - FlareSolverr, CloudScraper, Playwright
+- 🔐 **Cookie authentication** - Secure session management
+- ⚡ **Rate limiting** - Configurable delays to avoid detection
+- 📦 **Structured storage** - MySQL with SQLAlchemy ORM
+
+### Data Processing
+
+- 🧹 **Data cleaning** - Remove duplicates, fix encoding issues
+- 🌐 **Translation** - Vietnamese to English using Google Translator
+- 📊 **Skill extraction** - 600+ technical skills from requirements
+- 📅 **Experience parsing** - Min/max years from job descriptions
+- 🏷️ **Job metadata** - Level, type, salary, benefits extraction
+
+### Analysis & ML
+
+- 📈 **Trend analysis** - Skill demand over time
+- 🎯 **Job scoring** - Potential scoring based on multiple factors
+- 🔍 **Skill clustering** - Group similar skills using TF-IDF
+- 💰 **Salary insights** - Statistics by location, level, skills
+
+### API & Services
+
+- 🚀 **RESTful API** - FastAPI with async support
+- 📊 **Dashboard endpoints** - Statistics and job listings
+- ⚙️ **Background jobs** - Async crawl task management
+- 🔍 **Search & filter** - Query jobs by multiple criteria
 
 ---
 
-## 📁 Folder Structure
+## 🏗️ Architecture
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│                         USER LAYER                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │
+│  │   API       │  │  Notebooks  │  │   Scripts   │           │
+│  │ (FastAPI)   │  │  (Jupyter)  │  │  (Python)   │           │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘           │
+└─────────┼─────────────────┼─────────────────┼─────────────────┘
+          │                 │                 │
+┌─────────┼─────────────────┼─────────────────┼─────────────────┐
+│         │        SERVICE LAYER               │                 │
+│  ┌──────▼──────┐  ┌──────▼──────┐  ┌───────▼──────┐          │
+│  │  Crawlers   │  │ Processing  │  │   Analysis   │          │
+│  │  (4 sites)  │  │  Pipeline   │  │   Engine     │          │
+│  └──────┬──────┘  └──────┬──────┘  └───────┬──────┘          │
+└─────────┼─────────────────┼─────────────────┼─────────────────┘
+          │                 │                 │
+┌─────────┼─────────────────┼─────────────────┼─────────────────┐
+│         │         DATA LAYER                 │                 │
+│  ┌──────▼──────────────────▼─────────────────▼──────┐         │
+│  │              MySQL Database (TiDB Cloud)          │         │
+│  │  Tables: jobs, jobs_it, crawl_logs, metadata    │         │
+│  └───────────────────────────────────────────────────┘         │
+└───────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🛠️ Technology Stack
+
+### Core Technologies
+
+- **Python 3.11+** - Main programming language
+- **FastAPI** - Modern async web framework
+- **SQLAlchemy** - ORM for database operations
+- **Playwright** - Browser automation
+- **MySQL 8.0** - Database (TiDB Cloud)
+
+### Data Processing
+
+- **Pandas** - Data manipulation and analysis
+- **NumPy** - Numerical computing
+- **Scikit-learn** - Machine learning (TF-IDF, clustering)
+- **Deep-Translator** - Language translation
+- **LangDetect** - Language detection
+
+### Web Scraping
+
+- **BeautifulSoup4** - HTML parsing
+- **Requests** - HTTP library
+- **CloudScraper** - Anti-bot bypass
+- **FlareSolverr** - Cloudflare bypass
+
+### Development Tools
+
+- **Docker** - Containerization
+- **Pytest** - Testing framework
+- **Jupyter** - Interactive notebooks
+- **Git** - Version control
+
+---
+
+## 📁 Project Structure
 
 ```
 Data-mining-project/
 │
 ├── api/                          # FastAPI Application
-│   ├── __init__.py
-│   ├── main.py                   # App entry point, routes, middleware
-│   ├── models.py                 # Pydantic models for API requests/responses
-│   ├── crawler_service.py        # Business logic for crawler management
-│   └── dashboard.py              # Dashboard API endpoints
+│   ├── main.py                   # API entry point
+│   ├── models.py                 # Pydantic models
+│   ├── crawler_service.py        # Crawler management
+│   └── dashboard.py              # Dashboard endpoints
 │
-├── config/                       # Configuration Management
-│   ├── __init__.py
-│   └── setting.py                # Pydantic Settings (env variables)
+├── config/                       # Configuration
+│   └── setting.py                # Environment settings
 │
 ├── src/                          # Core Source Code
-│   ├── __init__.py
-│   │
 │   ├── crawlers/                 # Web Crawlers
-│   │   ├── __init__.py           # Crawler factory function
-│   │   ├── base_crawler.py       # Abstract base class
+│   │   ├── base_crawler.py       # Abstract base
 │   │   ├── itviec_crawler.py     # ITViec implementation
 │   │   ├── topdev_crawler.py     # TopDev implementation
+│   │   ├── topcv_crawler.py      # TopCV implementation
 │   │   └── linkedin_crawler.py   # LinkedIn implementation
 │   │
 │   ├── database/                 # Database Layer
-│   │   ├── __init__.py           # Exports for easy imports
-│   │   ├── connection.py         # SQLAlchemy engine & session
-│   │   └── models/               # ORM Models
-│   │       ├── __init__.py
+│   │   ├── connection.py         # DB connection & session
+│   │   └── models/               # ORM models
 │   │       └── job/
-│   │           ├── __init__.py
-│   │           ├── job.py        # Job model definition
+│   │           ├── job.py        # Job model
+│   │           ├── job_it.py     # IT-specific fields
 │   │           └── crud_job.py   # CRUD operations
 │   │
 │   └── schemas/                  # Pydantic Schemas
-│       ├── __init__.py
-│       └── job.py                # Job validation schemas
+│       └── job.py                # Job validation
+│
+├── notebooks/                    # Jupyter Notebooks
+│   ├── extract_experience_years.ipynb
+│   ├── extract_skills_from_requirements.ipynb
+│   ├── extract_job_metadata.ipynb
+│   ├── translate_job_titles.ipynb
+│   ├── translate_jobs_data.ipynb
+│   ├── check_empty_experience_years.ipynb
+│   ├── fix_unreasonable_experience_years.ipynb
+│   └── fill_job_type_and_level.ipynb
 │
 ├── data/                         # Data Storage
-│   ├── raw/                      # Raw crawled data (JSON)
-│   ├── processed/                # Cleaned/processed data
-│   └── skill_dictionaries/       # Reference data for skill extraction
+│   ├── raw/                      # Raw crawled data
+│   ├── processed/                # Cleaned data
+│   └── skill_dictionaries/       # Skill reference data
 │
-├── certs/                        # SSL Certificates (for secure DB connections)
+├── certs/                        # SSL Certificates
 │   └── README.md
 │
 ├── tests/                        # Test Suite
@@ -115,29 +206,28 @@ Data-mining-project/
 ├── docker-compose.yml            # Docker orchestration
 ├── Dockerfile                    # Container definition
 ├── requirements.txt              # Python dependencies
-├── .env                          # Environment variables (not in git)
-├── run_api.py                    # Development server runner
-├── init_db.py                    # Database initialization script
-├── clean_data.py                 # Data cleaning utilities
-└── itviec-session-cookies.json   # Session cookies for authenticated crawling
+├── .env.example                  # Environment template
+├── init_db.py                    # Database initialization
+├── linkedin_crawler_best.py      # Standalone LinkedIn crawler
+├── DATA_MINING_PIPELINE.md       # Detailed pipeline docs
+└── README.md                     # This file
 ```
-
----
-
-## 🔧 Prerequisites
-
-- **Python 3.11+**
-- **MySQL 8.0+** (or use Docker)
-- **Docker & Docker Compose** (optional, for containerized deployment)
 
 ---
 
 ## 🚀 Installation
 
+### Prerequisites
+
+- Python 3.11+
+- MySQL 8.0+ or TiDB Cloud account
+- Docker & Docker Compose (optional)
+- 4GB+ RAM recommended
+
 ### Option 1: Local Development
 
 ```bash
-# Clone the repository
+# Clone repository
 git clone <your-repo-url>
 cd Data-mining-project
 
@@ -152,26 +242,22 @@ pip install -r requirements.txt
 # Install Playwright browsers
 playwright install chromium
 
-# Set up environment variables
+# Set up environment
 cp .env.example .env
-# Edit .env with your configuration
+# Edit .env with your database credentials
 
 # Initialize database
 python init_db.py
 
-# Run the API server
-python run_api.py
-# or: uvicorn api.main:app --reload
+# Run API server
+python -m uvicorn api.main:app --reload --port 8000
 ```
 
 ### Option 2: Docker Deployment
 
 ```bash
-# Start all services (API + MySQL)
+# Start all services
 docker-compose up -d
-
-# Development mode with hot-reload
-docker-compose --profile dev up api-dev mysql
 
 # View logs
 docker-compose logs -f api
@@ -184,34 +270,45 @@ docker-compose down
 
 ## ⚙️ Configuration
 
-Create a `.env` file in the project root:
+Create a `.env` file with the following variables:
 
 ```env
-# Application
+# Database Configuration
+MYSQL_HOST=gateway01.ap-southeast-1.prod.aws.tidbcloud.com
+MYSQL_PORT=4000
+MYSQL_DATABASE=data-mining
+MYSQL_USER=your_username
+MYSQL_PASSWORD=your_password
+
+# SSL Configuration (for TiDB Cloud)
+DB_SSL_ENABLED=true
+DB_SSL_CA=/path/to/ca-cert.pem
+
+# Application Settings
 DEBUG=false
 LOG_LEVEL=INFO
 
-# Database
-MYSQL_HOST=localhost
-MYSQL_PORT=3306
-MYSQL_DATABASE=job_crawler
-MYSQL_USER=crawler_user
-MYSQL_PASSWORD=your_secure_password
-MYSQL_ROOT_PASSWORD=root_password
-
-# SSL (optional)
-DB_SSL_ENABLED=false
-DB_SSL_CA=/app/certs/ca.pem
+# Crawler Settings
+CRAWLER_DELAY_MIN=2
+CRAWLER_DELAY_MAX=5
+MAX_RETRIES=3
 ```
 
 ---
 
 ## 📖 Usage
 
-### Start a Crawl Job via API
+### 1. Start API Server
 
 ```bash
-# Start crawling ITViec
+python -m uvicorn api.main:app --reload --port 8000
+# API available at http://localhost:8000
+# Docs at http://localhost:8000/docs
+```
+
+### 2. Trigger Crawl Job
+
+```bash
 curl -X POST "http://localhost:8000/api/v1/crawl" \
   -H "Content-Type: application/json" \
   -d '{
@@ -223,20 +320,30 @@ curl -X POST "http://localhost:8000/api/v1/crawl" \
     "fetch_details": true,
     "store_to_db": true
   }'
-
-# Check job status
-curl "http://localhost:8000/api/v1/jobs/{job_id}"
-
-# List all jobs from database
-curl "http://localhost:8000/api/v1/dashboard/jobs"
 ```
 
-### Using Crawlers Directly (Python)
+### 3. Check Job Status
+
+```bash
+curl "http://localhost:8000/api/v1/jobs/{job_id}"
+```
+
+### 4. Get Dashboard Data
+
+```bash
+# Get all jobs
+curl "http://localhost:8000/api/v1/dashboard/jobs?limit=100"
+
+# Get statistics
+curl "http://localhost:8000/api/v1/dashboard/stats"
+```
+
+### 5. Use Crawlers Directly
 
 ```python
 from src.crawlers import create_crawler
 
-# Create crawler instance
+# Create crawler
 crawler = create_crawler(
     source="itviec",
     cookies_path="itviec-session-cookies.json",
@@ -244,417 +351,245 @@ crawler = create_crawler(
 )
 
 # Run crawl
-for job in crawler.crawl(
-    keywords=["python"],
-    pages=3,
-    max_jobs=50,
-    fetch_details=True
-):
+for job in crawler.crawl(keywords=["python"], pages=3):
     print(f"Found: {job['title']} at {job['company_name']}")
 ```
 
 ---
 
+## 🔄 Data Pipeline
+
+### Stage 1: Data Collection
+
+- Crawl job postings from multiple sources
+- Extract 25+ fields per job
+- Store raw data in MySQL
+- Handle anti-bot measures
+
+### Stage 2: Data Processing
+
+- **Translation** - Convert Vietnamese text to English
+- **Skill Extraction** - Identify 600+ technical skills
+- **Experience Parsing** - Extract years of experience
+- **Metadata Extraction** - Education, certifications, job type
+- **Data Quality** - Fill missing values, fix inconsistencies
+
+### Stage 3: Data Analysis
+
+- **Skill Clustering** - Group similar skills using TF-IDF
+- **Trend Analysis** - Track skill demand over time
+- **Salary Analysis** - Statistics by location and level
+- **Job Scoring** - Rank jobs by multiple factors
+
+### Stage 4: Insights Generation
+
+- Top demanded skills
+- Salary trends by location
+- Experience requirements by level
+- Most common benefits
+
+---
+
 ## 🔌 API Reference
 
-| Endpoint                  | Method | Description                    |
-| ------------------------- | ------ | ------------------------------ |
-| `/`                       | GET    | API information                |
-| `/health`                 | GET    | Health check                   |
-| `/api/v1/sources`         | GET    | List available crawler sources |
-| `/api/v1/crawl`           | POST   | Start a new crawl job          |
-| `/api/v1/jobs/{job_id}`   | GET    | Get crawl job status           |
-| `/api/v1/jobs`            | GET    | List all crawl jobs            |
-| `/api/v1/dashboard/jobs`  | GET    | Get jobs from database         |
-| `/api/v1/dashboard/stats` | GET    | Get crawl statistics           |
+### Core Endpoints
 
----
+| Endpoint                | Method | Description          |
+| ----------------------- | ------ | -------------------- |
+| `/`                     | GET    | API information      |
+| `/health`               | GET    | Health check         |
+| `/api/v1/sources`       | GET    | List crawler sources |
+| `/api/v1/crawl`         | POST   | Start crawl job      |
+| `/api/v1/jobs/{job_id}` | GET    | Get job status       |
+| `/api/v1/jobs`          | GET    | List all crawl jobs  |
 
-## 📊 Data Schema
+### Dashboard Endpoints
 
-### Job Data Structure
+| Endpoint                    | Method | Description            |
+| --------------------------- | ------ | ---------------------- |
+| `/api/v1/dashboard/jobs`    | GET    | Get jobs from database |
+| `/api/v1/dashboard/stats`   | GET    | Get statistics         |
+| `/api/v1/dashboard/sources` | GET    | Jobs by source         |
+| `/api/v1/dashboard/skills`  | GET    | Top skills             |
 
-```json
+### Example Request
+
+```bash
+POST /api/v1/crawl
 {
-  "title": "Senior Python Developer",
-  "company_name": "TechCorp Vietnam",
-  "location": "Ho Chi Minh",
   "source": "itviec",
-  "source_url": "https://itviec.com/it-jobs/...",
-  "description": "Full job description...",
-  "requirements_text": "Job requirements...",
-  "job_type": "Full-time",
-  "level": "Senior",
-  "salary_min": 2000,
-  "salary_max": 4000,
-  "salary_currency": "USD",
-  "experience_years_min": 3,
-  "experience_years_max": 5,
-  "required_skills": ["Python", "FastAPI", "PostgreSQL"],
-  "preferred_skills": ["Docker", "Kubernetes"],
-  "benefits": ["Health insurance", "13th month salary"],
-  "is_remote": false,
-  "is_active": true,
-  "crawled_at": "2026-01-03T10:30:00"
+  "keywords": ["python", "django"],
+  "location": "ha-noi",
+  "pages": 10,
+  "max_jobs": 200,
+  "fetch_details": true,
+  "store_to_db": true
 }
 ```
 
 ---
 
-## 🔄 Extending the Project
+## 📓 Notebooks
 
-### Adding a New Crawler
+### Data Processing Notebooks
 
-1. Create a new file in `src/crawlers/`:
+1. **[extract_experience_years.ipynb](notebooks/extract_experience_years.ipynb)**
+   - Extract min/max years of experience from job descriptions
+   - Pattern matching with regex
+   - Fallback to job level inference
 
-```python
-# src/crawlers/my_crawler.py
-from .base_crawler import BaseCrawler
+2. **[extract_skills_from_requirements.ipynb](notebooks/extract_skills_from_requirements.ipynb)**
+   - Extract 600+ technical skills from requirements
+   - Categorize by type (languages, frameworks, tools)
+   - Store as JSON array in database
 
-class MyCrawler(BaseCrawler):
-    BASE_URL = "https://example.com"
+3. **[extract_job_metadata.ipynb](notebooks/extract_job_metadata.ipynb)**
+   - Extract education requirements
+   - Identify certifications
+   - Parse job type and level information
 
-    def __init__(self, **kwargs):
-        super().__init__(source="mysite", **kwargs)
+4. **[translate_job_titles.ipynb](notebooks/translate_job_titles.ipynb)**
+   - Translate Vietnamese job titles to English
+   - Language detection with fallback
+   - Batch processing with caching
 
-    def crawl(self, **kwargs):
-        """Implement crawl logic."""
-        # Your crawling code here
-        yield job_data
+5. **[translate_jobs_data.ipynb](notebooks/translate_jobs_data.ipynb)**
+   - Translate all text fields (description, requirements, benefits)
+   - Handle Vietnamese administrative terms for locations
+   - Skip LinkedIn jobs (already in English)
+   - Progress tracking with statistics
 
-    def parse_item(self, raw_data):
-        """Parse raw HTML/JSON to structured data."""
-        return {
-            "title": ...,
-            "company_name": ...,
-            # ...
-        }
-```
+6. **[check_empty_experience_years.ipynb](notebooks/check_empty_experience_years.ipynb)**
+   - Data quality analysis for experience years
+   - Identify missing or NULL values
+   - Generate visualizations and statistics
 
-2. Register in `src/crawlers/__init__.py`:
+7. **[fix_unreasonable_experience_years.ipynb](notebooks/fix_unreasonable_experience_years.ipynb)**
+   - Fill missing experience years values
+   - Use job level to infer reasonable ranges
+   - Update database with filled values
 
-```python
-from .my_crawler import MyCrawler
-
-CRAWLERS = {
-    "itviec": ITViecCrawler,
-    "topdev": TopDevCrawler,
-    "mysite": MyCrawler,  # Add here
-}
-```
-
-### Adding New Data Fields
-
-1. Update `src/schemas/job.py` - Add Pydantic field
-2. Update `src/database/models/job/job.py` - Add SQLAlchemy column
-3. Run database migration or recreate tables
+8. **[fill_job_type_and_level.ipynb](notebooks/fill_job_type_and_level.ipynb)**
+   - Detect job_type from title and description
+   - Detect job level (Intern, Junior, Senior, etc.)
+   - Handle "all" level values and fill with specific levels
 
 ---
 
-## 🏗️ Building Other Processes
+## 🗄️ Database Schema
 
-All data mining processes are organized inside the `src/` folder. Here's how to extend the project:
+### `jobs` Table
 
-### 📌 Target Project Structure
+```sql
+CREATE TABLE jobs (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(500),
+    company_name VARCHAR(255),
+    location TEXT,
+    source VARCHAR(50),
+    source_url TEXT UNIQUE,
+    description TEXT,
+    requirements_text TEXT,
+    job_type VARCHAR(100),
+    level VARCHAR(100),
+    salary_min DECIMAL(15, 2),
+    salary_max DECIMAL(15, 2),
+    salary_currency VARCHAR(10),
+    experience_years_min INT,
+    experience_years_max INT,
+    education_level VARCHAR(255),
+    required_skills JSON,
+    preferred_skills JSON,
+    certifications JSON,
+    benefits JSON,
+    is_remote BOOLEAN,
+    is_active BOOLEAN,
+    posted_date DATE,
+    crawled_at TIMESTAMP,
+    updated_at TIMESTAMP,
 
-```
-Data-mining-project/
-│
-├── api/                          # API Layer (existing)
-│   ├── main.py
-│   ├── models.py
-│   ├── crawler_service.py
-│   └── dashboard.py
-│
-├── src/                          # Core Source Code
-│   │
-│   ├── crawlers/                 # ✅ Stage 1: Data Collection (DONE)
-│   │   ├── __init__.py
-│   │   ├── base_crawler.py
-│   │   ├── itviec_crawler.py
-│   │   ├── topdev_crawler.py
-│   │   └── linkedin_crawler.py
-│   │
-│   ├── processing/               # 🔧 Stage 2: Data Processing (TODO)
-│   │   ├── __init__.py
-│   │   ├── cleaner.py            # Remove duplicates, fix encoding
-│   │   ├── normalizer.py         # Standardize locations, salaries
-│   │   ├── skill_extractor.py    # NLP-based skill extraction
-│   │   └── enricher.py           # Add derived fields
-│   │
-│   ├── analysis/                 # 🔧 Stage 3: Data Analysis (TODO)
-│   │   ├── __init__.py
-│   │   ├── statistics.py         # Descriptive statistics
-│   │   ├── trend_analyzer.py     # Time-series analysis
-│   │   └── skill_clustering.py   # Skill similarity analysis
-│   │
-│   ├── models/                   # 🔧 Stage 4: ML Models (TODO)
-│   │   ├── __init__.py
-│   │   ├── base_model.py         # Abstract base for ML models
-│   │   ├── salary_predictor.py   # Salary prediction model
-│   │   ├── job_classifier.py     # Job category classification
-│   │   └── skill_recommender.py  # Skill recommendation system
-│   │
-│   ├── database/                 # Database Layer (existing)
-│   │   ├── __init__.py
-│   │   ├── connection.py
-│   │   └── models/
-│   │
-│   └── schemas/                  # Pydantic Schemas (existing)
-│       ├── __init__.py
-│       └── job.py
-│
-├── data/                         # Data Storage
-│   ├── raw/                      # Raw crawled data
-│   ├── processed/                # Cleaned data
-│   ├── models/                   # Trained model files (.pkl, .joblib)
-│   └── skill_dictionaries/       # Reference data
-│
-├── notebooks/                    # 🔧 Jupyter Notebooks (TODO)
-│   ├── exploration.ipynb         # Data exploration
-│   ├── training.ipynb            # Model training experiments
-│   └── evaluation.ipynb          # Model evaluation
-│
-└── scripts/                      # 🔧 Utility Scripts (TODO)
-    ├── run_processing.py         # Run data processing pipeline
-    ├── train_models.py           # Train all ML models
-    └── export_data.py            # Export data for dashboard
+    INDEX idx_source (source),
+    INDEX idx_location (location(255)),
+    INDEX idx_level (level),
+    INDEX idx_posted (posted_date),
+    FULLTEXT INDEX ft_description (description, requirements_text)
+);
 ```
 
-### 📝 Guidelines for Each Process
+### Key Features
 
-#### Stage 2: Data Processing (`src/processing/`)
-
-```python
-# src/processing/cleaner.py
-
-from sqlalchemy.orm import Session
-from src.database import get_db_session
-from src.database.models.job import Job
-
-class DataCleaner:
-    """Clean and deduplicate job data."""
-
-    def remove_duplicates(self, session: Session):
-        """Remove duplicate jobs based on source_url."""
-        # Implementation
-        pass
-
-    def normalize_locations(self, session: Session):
-        """Standardize location names."""
-        location_mapping = {
-            "HCM": "Ho Chi Minh",
-            "Hồ Chí Minh": "Ho Chi Minh",
-            "HCMC": "Ho Chi Minh",
-        }
-        # Implementation
-        pass
-
-    def fix_encoding(self, session: Session):
-        """Fix encoding issues in text fields."""
-        pass
-```
-
-```python
-# src/processing/skill_extractor.py
-
-import re
-from typing import List, Set
-
-class SkillExtractor:
-    """Extract skills from job descriptions using NLP."""
-
-    def __init__(self, skill_dictionary_path: str = "data/skill_dictionaries/"):
-        self.skills_db = self._load_skill_dictionary(skill_dictionary_path)
-
-    def extract_skills(self, text: str) -> List[str]:
-        """Extract skills from text using pattern matching and NLP."""
-        # Use spaCy, NLTK, or custom NER
-        pass
-
-    def categorize_skills(self, skills: List[str]) -> dict:
-        """Categorize skills into groups (languages, frameworks, tools)."""
-        pass
-```
-
-#### Stage 3: Data Analysis (`src/analysis/`)
-
-```python
-# src/analysis/trend_analyzer.py
-
-import pandas as pd
-from datetime import datetime, timedelta
-from src.database import get_db_session
-from src.database.models.job import Job
-
-class TrendAnalyzer:
-    """Analyze job market trends over time."""
-
-    def get_skill_trends(self, days: int = 30) -> pd.DataFrame:
-        """Analyze which skills are trending up/down."""
-        pass
-
-    def get_salary_trends(self, by: str = "location") -> pd.DataFrame:
-        """Analyze salary trends by location, skill, or level."""
-        pass
-
-    def get_demand_forecast(self, skill: str) -> dict:
-        """Forecast future demand for a skill."""
-        pass
-```
-
-#### Stage 4: ML Models (`src/models/`)
-
-```python
-# src/models/base_model.py
-
-from abc import ABC, abstractmethod
-from pathlib import Path
-import joblib
-
-class BaseModel(ABC):
-    """Abstract base class for ML models."""
-
-    def __init__(self, model_name: str):
-        self.model_name = model_name
-        self.model = None
-        self.model_path = Path(f"data/models/{model_name}.joblib")
-
-    @abstractmethod
-    def train(self, X, y):
-        """Train the model."""
-        pass
-
-    @abstractmethod
-    def predict(self, X):
-        """Make predictions."""
-        pass
-
-    def save(self):
-        """Save model to disk."""
-        self.model_path.parent.mkdir(parents=True, exist_ok=True)
-        joblib.dump(self.model, self.model_path)
-
-    def load(self):
-        """Load model from disk."""
-        if self.model_path.exists():
-            self.model = joblib.load(self.model_path)
-```
-
-```python
-# src/models/salary_predictor.py
-
-import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.preprocessing import LabelEncoder
-from .base_model import BaseModel
-from src.database import get_db_session
-from src.database.models.job import Job
-
-class SalaryPredictor(BaseModel):
-    """Predict salary based on job features."""
-
-    def __init__(self):
-        super().__init__("salary_predictor")
-        self.encoders = {}
-
-    def load_training_data(self) -> pd.DataFrame:
-        """Load jobs with salary data from database."""
-        with get_db_session() as session:
-            jobs = session.query(Job).filter(
-                Job.salary_min.isnot(None),
-                Job.salary_max.isnot(None)
-            ).all()
-            return pd.DataFrame([{
-                'title': j.title,
-                'location': j.location,
-                'level': j.level,
-                'skills': j.required_skills,
-                'salary_avg': (j.salary_min + j.salary_max) / 2
-            } for j in jobs])
-
-    def train(self, X, y):
-        """Train the salary prediction model."""
-        self.model = RandomForestRegressor(n_estimators=100)
-        self.model.fit(X, y)
-        self.save()
-
-    def predict(self, job_features: dict) -> float:
-        """Predict salary for a job."""
-        # Feature preprocessing and prediction
-        pass
-```
-
-### 📊 Data Flow Diagram
-
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                           Data-mining-project                                 │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐   │
-│  │  CRAWLERS   │───▶│ PROCESSING  │───▶│  ANALYSIS   │───▶│   MODELS    │   │
-│  │ src/crawlers│    │src/processing│   │src/analysis │    │ src/models  │   │
-│  └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘   │
-│         │                  │                  │                  │          │
-│         ▼                  ▼                  ▼                  ▼          │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │                         DATABASE (MySQL)                             │    │
-│  │                      src/database/models/                            │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-│                                    │                                         │
-│                                    ▼                                         │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │                           API (FastAPI)                              │    │
-│  │                              api/                                    │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
-                                     │
-                                     ▼
-                    ┌─────────────────────────────────┐
-                    │   Datamining-dashboard (React)  │
-                    └─────────────────────────────────┘
-```
-
-### 🔧 Tips for Building New Processes
-
-1. **Follow the existing patterns** - Use Pydantic for validation, SQLAlchemy for ORM
-2. **Reuse database connection** - Import from `src.database`
-3. **Store models in `data/models/`** - Use joblib or pickle for serialization
-4. **Add new dependencies to `requirements.txt`** - e.g., scikit-learn, spacy, nltk
-5. **Create API endpoints** - Add routes in `api/` for new functionality
-6. **Write tests** - Add tests in `tests/` for new modules
+- **JSON columns** for flexible skill/benefit storage
+- **Full-text search** on description and requirements
+- **Indexes** on source, location, level, posted_date for fast queries
+- **Unique constraint** on source_url for automatic deduplication
+- **Timestamp tracking** for crawl and update times
 
 ---
 
 ## 🧪 Testing
 
 ```bash
-# Run tests
+# Run all tests
 pytest tests/ -v
 
 # Run with coverage
-pytest tests/ --cov=src --cov=api
+pytest tests/ --cov=src --cov=api --cov-report=html
+
+# Run specific test
+pytest tests/test_api.py::test_root -v
 ```
-
----
-
-## 📄 License
-
-This project is for educational and research purposes.
 
 ---
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Open Pull Request
+
+### Development Guidelines
+
+- Follow PEP 8 style guide
+- Add docstrings to all functions
+- Write tests for new features
+- Update documentation as needed
+
+---
+
+## 📄 License
+
+This project is for educational and research purposes. Please respect the terms of service of the scraped websites.
 
 ---
 
 ## 📧 Contact
 
 For questions or suggestions, please open an issue in this repository.
+
+---
+
+## 🙏 Acknowledgments
+
+- **Data sources**: ITViec, TopCV, TopDev, LinkedIn
+- **FlareSolverr** for Cloudflare bypass solutions
+- **TiDB Cloud** for MySQL-compatible database hosting
+- **FastAPI** framework for modern API development
+- **Playwright** for reliable browser automation
+
+---
+
+## 🎓 Educational Use
+
+This project demonstrates:
+
+- Web scraping techniques and anti-bot solutions
+- Data cleaning and normalization workflows
+- Natural language processing for skill extraction
+- RESTful API design with FastAPI
+- Database design and optimization
+- Docker containerization
+- Data analysis with Jupyter notebooks
+
+**Built with ❤️ for the Data Mining community**
